@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reporte de ejecución de Codex",
+  "description": "Forma obligatoria de la respuesta final de Codex en este proyecto. Hace estructural la REGLA DE ORO del protocolo Claude<->Codex definido en AGENTS.md. Se pasa con: codex exec --output-schema docs/codex-report.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["changed", "verification", "summary", "escalation"],
+  "properties": {
+    "changed": {
+      "type": "array",
+      "description": "Rutas relativas al repo de los archivos creados o modificados. Array vacío si no se tocó nada.",
+      "items": { "type": "string" }
+    },
+    "verification": {
+      "type": "string",
+      "description": "Resultado de la verificación automática que se ejecutó (npx tsc --noEmit, npm run build, npm run lint, tests). Usar 'skipped' solo si ninguna aplicaba a la tarea.",
+      "enum": ["pass", "fail", "skipped"]
+    },
+    "summary": {
+      "type": "string",
+      "description": "Máximo 5 líneas. Qué se hizo y por qué. Prohibido: logs crudos, bloques de código, HTML completo, narrativa larga."
+    },
+    "escalation": {
+      "type": ["string", "null"],
+      "description": "Error puntual a escalar a Claude tras 1 reintento fallido. null si no hay nada que escalar. Nunca incluir el intento completo, solo el error concreto."
+    }
+  }
+}
