@@ -1,22 +1,28 @@
 <!-- AUTO-GENERATED from AGENTS.md — do not edit directly.
      Run `bash scripts/sync-agent-rules.sh` to regenerate. -->
 
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+<!-- BEGIN:astro-agent-rules -->
+# This is NOT the Astro you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+Astro 7 has breaking changes — APIs, conventions, and file structure may all differ from your training data. The official guides are vendored in `docs/astro/`. Read the relevant one before writing any code; never write `.astro` from memory.
+
+Two v7 changes bite this project in particular:
+
+- **The compiler is strict.** Every non-void element must be closed, and semantically invalid HTML is no longer auto-corrected. Markup copied from a live site is invalid surprisingly often — restructure it into valid markup that renders identically rather than copying the invalidity.
+- **`compressHTML` now defaults to `'jsx'`**, which collapses multi-line text and strips line breaks around elements. This project pins it to `true` in `astro.config.mjs`, the lossless mode that preserves visual rendering. Don't change it without understanding what it does to inline spacing.
+<!-- END:astro-agent-rules -->
 
 # Website Reverse-Engineer Template
 
 ## What This Is
-A reusable template for reverse-engineering any website into a clean, modern Next.js codebase using AI coding agents. The Next.js + shadcn/ui + Tailwind v4 base is pre-scaffolded — just run `/clone-website <url1> [<url2> ...]`.
+A reusable template for reverse-engineering any website into a clean, modern Astro codebase using AI coding agents. The Astro 7 + React islands + Tailwind v4 base is pre-scaffolded — just run `/clone-website <url1> [<url2> ...]`.
 
 ## Tech Stack
-- **Framework:** Next.js 16 (App Router, React 19, TypeScript strict)
-- **UI:** shadcn/ui (Radix primitives, Tailwind CSS v4, `cn()` utility)
-- **Icons:** Lucide React (default — will be replaced/supplemented by extracted SVGs)
-- **Styling:** Tailwind CSS v4 with oklch design tokens
+- **Framework:** Astro 7, static output, TypeScript strict
+- **Interactivity:** React 19 islands via `@astrojs/react`, hydrated with `client:*` directives — zero JS by default
+- **Styling:** Tailwind CSS v4 through `@tailwindcss/vite`, oklch design tokens
+- **Fonts:** Astro's built-in Fonts API (`fonts` in `astro.config.mjs` + `<Font />` from `astro:assets`)
+- **Icons:** `.astro` components extracted from the target site
 - **Deployment:** Vercel
 
 ## Commands
@@ -42,19 +48,22 @@ A reusable template for reverse-engineering any website into a clean, modern Nex
 ## Project Structure
 ```
 src/
-  app/              # Next.js routes
-  components/       # React components
-    ui/             # shadcn/ui primitives
-    icons.tsx       # Extracted SVG icons as React components
+  pages/            # Astro routes
+  layouts/          # Layout.astro — <head>, fonts, global metadata
+  components/       # .astro components; .tsx only for React islands
+    icons/          # Extracted SVG icons as .astro components
+  styles/
+    globals.css     # Tailwind v4 entry + design tokens
   lib/
-    utils.ts        # cn() utility (shadcn)
+    utils.ts        # cn() utility, for use inside React islands
   types/            # TypeScript interfaces
-  hooks/            # Custom React hooks
+  hooks/            # Custom React hooks (islands only)
 public/
   images/           # Downloaded images from target site
   videos/           # Downloaded videos from target site
   seo/              # Favicons, OG images, webmanifest
 docs/
+  astro/            # Vendored Astro 7 docs — read before writing .astro
   research/         # Inspection output (design tokens, components, layout)
   design-references/ # Screenshots and visual references
 scripts/            # Asset download scripts
@@ -87,6 +96,25 @@ Codex nunca entrega narrativa larga: solo qué cambió, resultado de verificaci�
 ## FALLOS
 Codex reintenta 1 vez con el motivo del fallo. Si persiste, escala con el error puntual, no con el intento completo.
 
+**Excepción: los errores de entorno no se reintentan nunca.** Red caída, permisos denegados, política de ejecución, sandbox. Codex no va a resolver reintentando un límite de su propio sandbox — escala a la primera.
+
+## SUPERVISIÓN — delegar no es desentenderse
+Mientras Codex trabaja, Claude vigila. Un agente reintentando en bucle no está progresando: está quemando tokens.
+
+- **Si tarda, entra a mirar.** Pasados unos minutos sin cierre, Claude abre la salida del proceso y comprueba en qué está.
+- **Mismo error repetido = cortar.** Si el log repite el mismo fallo —sobre todo de entorno— Claude mata el proceso y asume la tarea. No espera al timeout.
+- **Nunca dejar una ejecución larga sin vigilancia.** Despachar en background y olvidarse es tan caro como no delegar.
+
+## ANTES DE DESPACHAR: que la verificación sea posible
+La regla "verificación automática primero" solo sirve si Codex puede ejecutarla. Antes de despachar, Claude comprueba que el camino de verificación existe de verdad:
+
+- Si la tarea necesita dependencias nuevas, **Claude las instala antes**. Codex no tiene red.
+- Si la verificación no es ejecutable por Codex, la tarea **deja de ser rutinaria**: Claude la verifica en cuanto Codex entrega, antes de darla por buena.
+- **`verification: "fail"` o `"skipped"` no es trabajo terminado.** Es una entrega a medias, y cerrarla es responsabilidad de Claude. Código que nadie verificó no se da por bueno aunque parezca correcto.
+
+## LEER BIEN LOS CÓDIGOS DE SALIDA
+`cmd | tail` devuelve el código de salida de `tail`, no el de `cmd`: un lint o un build que falla se ve como éxito. Usar `set -o pipefail` siempre que se canalice la salida de una verificación, y no fiarse de un exit code que pasó por una tubería.
+
 ## PROHIBIDO
 - Diálogos largos Claude↔Codex.
 - Doble opinión en tareas rutinarias (el test ya es el segundo parecer, gratis).
@@ -98,8 +126,9 @@ Objetivo y qué cuenta como crítico se definen al inicio de la tarea → Codex 
 
 ## Qué cuenta como crítico en este proyecto
 - **El modelo de interacción de una sección** (scroll-driven vs click-driven vs hover vs time). Equivocarse obliga a reescribir el componente entero y ningún test lo detecta.
-- **Los tokens de diseño globales** — `src/app/globals.css` y las fuentes de `src/app/layout.tsx`. Todo el clon hereda de ahí.
-- **El ensamblado de `src/app/page.tsx`** — capas z-index, sticky, scroll containers.
+- **Los tokens de diseño globales** — `src/styles/globals.css` y las fuentes declaradas en `astro.config.mjs` + `src/layouts/Layout.astro`. Todo el clon hereda de ahí.
+- **La elección de formato de cada componente** — `.astro`, `.astro` + `<script>`, o isla React con su directiva `client:*`. Determina cuánto JS envía el clon y ningún test lo detecta.
+- **El ensamblado de `src/pages/index.astro`** — capas z-index, sticky, scroll containers.
 - **Merges de worktrees con conflictos no triviales.**
 - **Cualquier cambio irreversible:** borrados, force push, reescritura de historial, o config fuera del repo.
 
@@ -112,16 +141,16 @@ Esta sección **sobrescribe el despacho de builders** descrito en el skill. Los 
 - Fase 1 completa: screenshots y barridos de scroll/click/hover/responsive
 - La decisión del modelo de interacción de cada sección
 - `docs/research/PAGE_TOPOLOGY.md` y `BEHAVIORS.md`
-- Fase 2: el mapeo de colores y fuentes del target a tokens shadcn
+- Fase 2: el mapeo de colores y fuentes del target a tokens CSS y a la Fonts API
 - Fase 5: el QA visual diff contra el original
 
 **Codex ejecuta:**
-- Los builders: spec `.md` → `.tsx`, uno por worktree
+- Los builders: spec `.md` → `.astro` (o `.tsx` si es isla), uno por worktree
 - La conversión de dump crudo → spec `.md`
 - `scripts/download-assets.mjs` (escribirlo y ejecutarlo)
-- `src/components/icons.tsx` a partir de los SVG volcados a disco
+- Los iconos `.astro` de `src/components/icons/` a partir de los SVG volcados a disco
 - Las interfaces TS de `src/types/`
-- El ensamblado mecánico de `page.tsx` a partir de `PAGE_TOPOLOGY.md`
+- El ensamblado mecánico de `src/pages/index.astro` a partir de `PAGE_TOPOLOGY.md`
 - El arreglo de errores de lint / typecheck / build
 - Los merges de worktrees sin conflicto o con conflicto trivial
 
@@ -143,6 +172,11 @@ EOF
 - `read-only` para explorar y proponer; `workspace-write` solo cuando deba escribir.
 - **Acotar siempre:** foreground con timeout de 600000 ms, o background con `-o` si el trabajo puede pasar de 10 min. `codex exec` no tiene timeout propio.
 - Codex arranca en blanco en cada invocación: el prompt debe ser autocontenido salvo por rutas del repo, que sí puede leer.
+
+### Límites de Codex en esta máquina (comprobados)
+- **No tiene red.** `npm install` falla con `EACCES` contra `registry.npmjs.org`. Instalar dependencias es trabajo de Claude; Codex verifica sobre el `node_modules` ya existente. Si una tarea necesita deps nuevas, Claude las instala **antes** de despachar.
+- **Invoca `npm.cmd`, no `npm`.** La política de ejecución de PowerShell bloquea `npm.ps1` en este equipo.
+- **`-o` debe apuntar dentro del workspace.** Fuera de él la escritura se deniega por sandbox.
 <!-- END:claude-codex-protocol -->
 
 # Website Inspection Guide

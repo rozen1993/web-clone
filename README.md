@@ -2,7 +2,7 @@
 
 <a href="https://github.com/JCodesMore/ai-website-cloner-template/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a> <a href="https://github.com/JCodesMore/ai-website-cloner-template/stargazers"><img src="https://img.shields.io/github/stars/JCodesMore/ai-website-cloner-template?style=flat" alt="Stars" /></a> <a href="https://discord.gg/hrTSX5yTpB"><img src="https://img.shields.io/discord/1400896964597383279?label=discord" alt="Discord" /></a> <img src="https://img.shields.io/endpoint?url=https://gittokens.rsamf.com/badge/JCodesMore/ai-website-cloner-template" alt="tokens" />
 
-A reusable template for reverse-engineering any website into a clean, modern Next.js codebase using AI coding agents. 
+A reusable template for reverse-engineering any website into a clean, modern Astro codebase using AI coding agents. 
 
 **Recommended: [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with Opus 4.8 for best results** — but works with a variety of AI coding agents.
 
@@ -78,10 +78,10 @@ Point it at a URL, run `/clone-website`, and your AI agent will inspect the site
 
 ## Tech Stack
 
-- **Next.js 16** — App Router, React 19, TypeScript strict
-- **shadcn/ui** — Radix primitives + Tailwind CSS v4
-- **Tailwind CSS v4** — oklch design tokens
-- **Lucide React** — default icons (replaced by extracted SVGs during cloning)
+- **Astro 7** — static output, TypeScript strict, zero JS by default
+- **React 19 islands** — via `@astrojs/react`, hydrated only where the original is actually interactive
+- **Tailwind CSS v4** — through `@tailwindcss/vite`, oklch design tokens
+- **Astro Fonts API** — the target's fonts, downloaded and self-hosted
 
 ## How It Works
 
@@ -97,7 +97,7 @@ Each builder agent receives the full component specification inline — exact `g
 
 ## Use Cases
 
-- **Platform migration** — rebuild a site you own from WordPress/Webflow/Squarespace into a modern Next.js codebase
+- **Platform migration** — rebuild a site you own from WordPress/Webflow/Squarespace into a modern Astro codebase
 - **Lost source code** — your site is live but the repo is gone, the developer left, or the stack is legacy. Get the code back in a modern format
 - **Learning** — deconstruct how production sites achieve specific layouts, animations, and responsive behavior by working with real code
 
@@ -111,18 +111,20 @@ Each builder agent receives the full component specification inline — exact `g
 
 ```
 src/
-  app/              # Next.js routes
-  components/       # React components
-    ui/             # shadcn/ui primitives
-    icons.tsx       # Extracted SVG icons
-  lib/utils.ts      # cn() utility
+  pages/            # Astro routes
+  layouts/          # Layout.astro — <head>, fonts, metadata
+  components/       # .astro components; .tsx only for React islands
+    icons/          # Extracted SVG icons as .astro components
+  styles/globals.css # Tailwind v4 entry + design tokens
+  lib/utils.ts      # cn() utility (used inside islands)
   types/            # TypeScript interfaces
-  hooks/            # Custom React hooks
+  hooks/            # Custom React hooks (islands only)
 public/
   images/           # Downloaded images from target
   videos/           # Downloaded videos from target
   seo/              # Favicons, OG images
 docs/
+  astro/            # Vendored Astro 7 docs — read before writing .astro
   research/         # Extraction output & component specs
   design-references/ # Screenshots
 scripts/

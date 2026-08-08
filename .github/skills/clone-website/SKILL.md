@@ -28,7 +28,8 @@ If the user provides additional instructions (specific fidelity level, customiza
 
 1. **Browser automation is required.** Check for available browser MCP tools (Chrome MCP, Playwright MCP, Browserbase MCP, Puppeteer MCP, etc.). Use whichever is available — if multiple exist, prefer Chrome MCP. If none are detected, ask the user which browser tool they have and how to connect it. This skill cannot work without browser automation.
 2. Parse `$ARGUMENTS` as one or more URLs. Normalize and validate each URL; if any are invalid, ask the user to correct them before proceeding. For each valid URL, verify it is accessible via your browser MCP tool.
-3. Verify the base project builds: `npm run build`. The Next.js + shadcn/ui + Tailwind v4 scaffold should already be in place. If not, tell the user to set it up first.
+3. Verify the base project builds: `npm run build`. The Astro 7 + React islands + Tailwind v4 scaffold should already be in place. If not, tell the user to set it up first.
+   **Read `docs/astro/` before writing any `.astro` file.** Astro 7 has breaking changes — the official guides are vendored there precisely so no agent writes from stale memory.
 4. Create the output directories if they don't exist: `docs/research/`, `docs/research/components/`, `docs/design-references/`, `scripts/`. For multiple clones, also prepare per-site folders like `docs/research/<hostname>/` and `docs/design-references/<hostname>/`.
 5. When working with multiple sites in one command, optionally confirm whether to run them in parallel (recommended, if resources allow) or sequentially to avoid overload.
 
@@ -50,7 +51,7 @@ Look at each section and judge its complexity. A simple banner with a heading an
 
 ### 3. Real Content, Real Assets
 
-Extract the actual text, images, videos, and SVGs from the live site. This is a clone, not a mockup. Use `element.textContent`, download every `<img>` and `<video>`, extract inline `<svg>` elements as React components. The only time you generate content is when something is clearly server-generated and unique per session.
+Extract the actual text, images, videos, and SVGs from the live site. This is a clone, not a mockup. Use `element.textContent`, download every `<img>` and `<video>`, extract inline `<svg>` elements as `.astro` components. The only time you generate content is when something is clearly server-generated and unique per session.
 
 **Layered assets matter.** A section that looks like one image is often multiple layers — a background watercolor/gradient, a foreground UI mockup PNG, an overlay icon. Inspect each container's full DOM tree and enumerate ALL `<img>` elements and background images within it, including absolutely-positioned overlays. Missing an overlay image makes the clone look empty even if the background is correct.
 
@@ -115,7 +116,7 @@ The spec file is not optional. It is not a nice-to-have. If you dispatch a build
 
 ### 9. Build Must Always Compile
 
-Every builder agent must verify `npx tsc --noEmit` passes before finishing. After merging worktrees, you verify `npm run build` passes. A broken build is never acceptable, even temporarily.
+Every builder agent must verify `npx astro check` passes before finishing. After merging worktrees, you verify `npm run build` passes. A broken build is never acceptable, even temporarily.
 
 ## Phase 1: Reconnaissance
 
@@ -129,11 +130,11 @@ Navigate to the target URL with browser MCP.
 ### Global Extraction
 Extract these from the page before doing anything else:
 
-**Fonts** — Inspect `<link>` tags for Google Fonts or self-hosted fonts. Check computed `font-family` on key elements (headings, body, code, labels). Document every family, weight, and style actually used. Configure them in `src/app/layout.tsx` using `next/font/google` or `next/font/local`.
+**Fonts** — Inspect `<link>` tags for Google Fonts or self-hosted fonts. Check computed `font-family` on key elements (headings, body, code, labels). Document every family, weight, and style actually used. Configure them with Astro's built-in Fonts API: a `fonts: [{ provider, name, cssVariable }]` entry in `astro.config.mjs` per family (`fontProviders.google()`, `fontProviders.fontsource()` or `fontProviders.local()`), then render `<Font cssVariable="..." />` from `astro:assets` in the `<head>` of `src/layouts/Layout.astro`. Astro downloads and self-hosts them. See `docs/astro/fonts.mdx`.
 
-**Colors** — Extract the site's color palette from computed styles across the page. Update `src/app/globals.css` with the target's actual colors in the `:root` and `.dark` CSS variable blocks. Map them to shadcn's token names (background, foreground, primary, muted, etc.) where they fit. Add custom properties for colors that don't map to shadcn tokens.
+**Colors** — Extract the site's color palette from computed styles across the page. Update `src/styles/globals.css` with the target's actual colors in the `:root` and `.dark` CSS variable blocks, and expose them to Tailwind through the `@theme inline` block. Name the tokens after the target's own vocabulary — there is no design system to conform to, so let the site being cloned dictate the names.
 
-**Favicons & Meta** — Download favicons, apple-touch-icons, OG images, webmanifest to `public/seo/`. Update `layout.tsx` metadata.
+**Favicons & Meta** — Download favicons, apple-touch-icons, OG images, webmanifest to `public/seo/`. Wire the `<link>` and `<meta>` tags into the `<head>` of `src/layouts/Layout.astro`.
 
 **Global UI patterns** — Identify any site-wide CSS or JS: custom scrollbar hiding, scroll-snap on the page container, global keyframe animations, backdrop filters, gradients used as overlays, **smooth scroll libraries** (Lenis, Locomotive Scroll — check for `.lenis`, `.locomotive-scroll`, or custom scroll container classes). Add these to `globals.css` and note any libraries that need to be installed.
 
@@ -179,10 +180,10 @@ Save this as `docs/research/PAGE_TOPOLOGY.md` — it becomes your assembly bluep
 
 This is sequential. Do it yourself (not delegated to an agent) since it touches many files:
 
-1. **Update fonts** in `layout.tsx` to match the target site's actual fonts
-2. **Update globals.css** with the target's color tokens, spacing values, keyframe animations, utility classes, and any **global scroll behaviors** (Lenis, smooth scroll CSS, scroll-snap on body)
+1. **Update fonts** — add one `fonts` entry per family in `astro.config.mjs` and render the matching `<Font />` components in `src/layouts/Layout.astro`
+2. **Update `src/styles/globals.css`** with the target's color tokens, spacing values, keyframe animations, utility classes, and any **global scroll behaviors** (Lenis, smooth scroll CSS, scroll-snap on body)
 3. **Create TypeScript interfaces** in `src/types/` for the content structures you've observed
-4. **Extract SVG icons** — find all inline `<svg>` elements on the page, deduplicate them, and save as named React components in `src/components/icons.tsx`. Name them by visual function (e.g., `SearchIcon`, `ArrowRightIcon`, `LogoIcon`).
+4. **Extract SVG icons** — find all inline `<svg>` elements on the page, deduplicate them, and save each as a named `.astro` component in `src/components/icons/` (e.g. `SearchIcon.astro`, `ArrowRightIcon.astro`, `LogoIcon.astro`). `.astro` icons ship zero JS. An icon needed *inside* a React island must be inlined in that island instead — an `.astro` component cannot be imported into a `.tsx` file.
 5. **Download global assets** — write and run a Node.js script (`scripts/download-assets.mjs`) that downloads all images, videos, and other binary assets from the page to `public/`. Preserve meaningful directory structure.
 6. Verify: `npm run build` passes
 
@@ -295,7 +296,7 @@ Record the diff explicitly: "Property X changes from VALUE_A to VALUE_B, trigger
 
 4. **Extract real content** — all text, alt attributes, aria labels, placeholder text. Use `element.textContent` for each text node. For tabbed/stateful content, **click each tab and extract content per state**.
 
-5. **Identify assets** this section uses — which downloaded images/videos from `public/`, which icon components from `icons.tsx`. Check for **layered images** (multiple `<img>` or background-images stacked in the same container).
+5. **Identify assets** this section uses — which downloaded images/videos from `public/`, which icon components from `src/components/icons/`. Check for **layered images** (multiple `<img>` or background-images stacked in the same container).
 
 6. **Assess complexity** — how many distinct sub-components does this section contain? A distinct sub-component is an element with its own unique styling, structure, and behavior (e.g., a card, a nav item, a search panel).
 
@@ -311,9 +312,10 @@ For each section (or sub-component, if you're breaking it up), create a spec fil
 # <ComponentName> Specification
 
 ## Overview
-- **Target file:** `src/components/<ComponentName>.tsx`
+- **Target file:** `src/components/<ComponentName>.astro` (or `.tsx` if it must be an island)
 - **Screenshot:** `docs/design-references/<screenshot-name>.png`
 - **Interaction model:** <static | click-driven | scroll-driven | time-driven>
+- **Component format:** <.astro | .astro + `<script>` | React island with `client:<directive>`>
 
 ## DOM Structure
 <Describe the element hierarchy — what contains what>
@@ -360,7 +362,7 @@ For each section (or sub-component, if you're breaking it up), create a spec fil
 ## Assets
 - Background image: `public/images/<file>.webp`
 - Overlay image: `public/images/<file>.png`
-- Icons used: <ArrowIcon>, <SearchIcon> from icons.tsx
+- Icons used: `ArrowRightIcon.astro`, `SearchIcon.astro` from `src/components/icons/`
 
 ## Text Content (verbatim)
 <All text content, copy-pasted from the live site>
@@ -382,13 +384,29 @@ Based on complexity, dispatch builder agent(s) in worktree(s):
 
 **Complex section** (3+ distinct sub-components): Break it up. One agent per sub-component, plus one agent for the section wrapper that imports them. Sub-component builders go first since the wrapper depends on them.
 
+#### Choosing the component format
+
+Astro ships zero JavaScript unless you ask for it. The interaction model you identified in Principle 6 decides the format — and getting this right is what makes the clone match the original's weight, not just its looks. Escalate only when the previous tier genuinely cannot do the job:
+
+1. **Static, or behavior expressible in CSS alone** (hover, transitions, `position: sticky`, `scroll-snap`, `animation-timeline`) → a plain `.astro` component. No JS at all. Most sections land here.
+2. **Needs JS, but it's self-contained** (IntersectionObserver reveals, scroll listeners, a class toggle, Lenis) → an `.astro` component with a `<script>` tag. Still zero framework JS.
+3. **Genuine component state** (tab sets sharing state, carousels, filtered lists) → a React island in `.tsx`, given a `client:*` directive by its trigger:
+   - `client:visible` — the default for anything below the fold, and for scroll-driven sections
+   - `client:idle` — interactive but not urgent
+   - `client:load` — only for above-the-fold interactivity that must work instantly
+   - `client:media` — only interactive at some breakpoints, e.g. a mobile-only menu
+
+Read `docs/astro/directives-reference.mdx` and `docs/astro/framework-components.mdx` before writing an island.
+
 **What every builder agent receives:**
 - The full contents of its component spec file (inline in the prompt — don't say "go read the spec file")
 - Path to the section screenshot in `docs/design-references/`
-- Which shared components to import (`icons.tsx`, `cn()`, shadcn primitives)
-- The target file path (e.g., `src/components/HeroSection.tsx`)
-- Instruction to verify with `npx tsc --noEmit` before finishing
+- The chosen component format and, for islands, the exact `client:*` directive
+- Which shared pieces to use: icon components from `src/components/icons/`, `class:list` for conditional classes in `.astro`, `cn()` from `src/lib/utils.ts` inside React islands
+- The target file path (e.g., `src/components/HeroSection.astro`)
+- Instruction to verify with `npx astro check` before finishing
 - For responsive behavior: the specific breakpoint values and what changes
+- **The Astro 7 markup rule:** the compiler is strict — every non-void element must be closed, and semantically invalid HTML is no longer auto-corrected. Real sites ship invalid markup all the time (a `<div>` inside a `<p>`, unclosed tags). Do not copy the invalidity: restructure it into valid markup that renders identically.
 
 **Don't wait.** As soon as you've dispatched the builder(s) for one section, move to extracting the next section. Builders work in parallel in their worktrees while you continue extraction.
 
@@ -404,7 +422,7 @@ The extract → spec → dispatch → merge cycle continues until all sections a
 
 ## Phase 4: Page Assembly
 
-After all sections are built and merged, wire everything together in `src/app/page.tsx`:
+After all sections are built and merged, wire everything together in `src/pages/index.astro`:
 
 - Import all section components
 - Implement the page-level layout from your topology doc (scroll containers, column structures, sticky positioning, z-index layering)

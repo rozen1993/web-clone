@@ -1,18 +1,18 @@
+import tsParser from "@typescript-eslint/parser";
 import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import astro from "eslint-plugin-astro";
 
 const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
+  ...astro.configs.recommended,
+  {
+    // The frontmatter of an .astro file is TypeScript. Without this, the Astro
+    // parser falls back to espree and chokes on `interface`, `type`, etc.
+    files: ["**/*.astro"],
+    languageOptions: {
+      parserOptions: { parser: tsParser },
+    },
+  },
+  globalIgnores(["dist/**", ".astro/**"]),
 ]);
 
 export default eslintConfig;

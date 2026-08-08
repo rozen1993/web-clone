@@ -10,6 +10,7 @@ RUN npm install
 EXPOSE 3000
 
 ENV NODE_ENV=development
-ENV NEXT_TELEMETRY_DISABLED=1
 
-CMD ["npm", "run", "dev"]
+# --host makes the Astro dev server bind 0.0.0.0 so it is reachable from outside
+# the container; by default it only listens on localhost.
+CMD ["npm", "run", "dev", "--", "--host", "--port", "3000"]

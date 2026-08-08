@@ -1,0 +1,30 @@
+---
+import { Font } from "astro:assets";
+import "../styles/globals.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "Website Clone",
+  description = "Pixel-perfect website clone",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="h-full antialiased">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <Font cssVariable="--font-geist-sans" />
+    <Font cssVariable="--font-geist-mono" />
+  </head>
+  <body class="flex min-h-full flex-col">
+    <slot />
+  </body>
+</html>
